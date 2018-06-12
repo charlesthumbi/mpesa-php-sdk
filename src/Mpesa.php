@@ -107,11 +107,7 @@ class Mpesa
 
         try {
             $result = json_decode($curl_response, true);
-//            $this->authed_at = time();
-//            $this->access_token = $result['access_token'];
-//            $this->expires_in = $result['expires_in'];
             return  $result['access_token'];
-
         } catch (\Exception $e) {
             throw $e;
         }
