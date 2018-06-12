@@ -30,6 +30,7 @@ class Mpesa
     {
         $this->key = $key ? : env('MPESA_CONSUMER_KEY');
         $this->secret = $secret ? : env('MPESA_CONSUMER_SECRET');
+        $this->config = $config;
     }
 
     /**
