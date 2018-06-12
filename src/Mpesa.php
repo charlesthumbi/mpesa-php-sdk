@@ -82,7 +82,6 @@ class Mpesa
         $curl = curl_init();
 
         curl_setopt($curl, CURLOPT_URL, $url);
-        var_dump($url);
         $credentials = base64_encode("{$consumer_key}:{$consumer_secret}");
         curl_setopt_array($curl, [
             CURLOPT_URL => $url,
