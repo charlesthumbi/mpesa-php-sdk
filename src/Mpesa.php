@@ -72,6 +72,7 @@ class Mpesa
     {
         $consumer_key = $this->key;
         $consumer_secret = $this->secret;
+        var_dump($this);
 
         if (!isset($consumer_key) || !isset($consumer_secret)) {
             die("please declare the consumer key and consumer secret as defined in the documentation");
@@ -79,14 +80,23 @@ class Mpesa
 
         $url = $this->get_endpoint("oauth/v1/generate?grant_type=client_credentials");
         $curl = curl_init();
+
         curl_setopt($curl, CURLOPT_URL, $url);
         $credentials = base64_encode($consumer_key . ':' . $consumer_secret);
-        curl_setopt($curl, CURLOPT_HTTPHEADER, array('Authorization: Basic ' . $credentials)); //setting a custom header
-        curl_setopt($curl, CURLOPT_HEADER, false);
-        curl_setopt($curl, CURLOPT_RETURNTRANSFER, 1);
-
-        curl_setopt($curl, CURLOPT_SSL_VERIFYPEER, false);
-
+        curl_setopt_array($curl, [
+            CURLOPT_URL => $url,
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_ENCODING => "",
+            CURLOPT_MAXREDIRS => 10,
+            CURLOPT_TIMEOUT => 30,
+            CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
+            CURLOPT_CUSTOMREQUEST => "GET",
+            CURLOPT_HTTPHEADER => [
+                "Authorization: Basic {$credentials}",
+                "cache-control: no-cache",
+            ],
+            CURLOPT_SSL_VERIFYPEER => false
+        ]);
         $curl_response = curl_exec($curl);
         var_dump($curl_response);
         die();
