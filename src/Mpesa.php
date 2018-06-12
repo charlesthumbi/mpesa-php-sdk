@@ -61,7 +61,9 @@ class Mpesa
         if(array_key_exists('live', $this->config))
             return $this->getConfig('live', false);
 
-        return env('MPESA_API_STATUS','sandbox');
+        $env  =  env('MPESA_API_STATUS','sandbox');
+
+        return in_array($env, ["prod", "live"]);
     }
 
     /**
