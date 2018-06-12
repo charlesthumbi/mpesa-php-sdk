@@ -1,5 +1,7 @@
 **Introduction**
 
+This fork allow mutli-app mpesa sdk 
+
 This package seeks to help php developers implement the various Mpesa APIs without much hustle. It is based on the REST API whose documentation is available on http://developer.safaricom.co.ke.
  
  **Installation using composer**<br>
@@ -8,12 +10,12 @@ This package seeks to help php developers implement the various Mpesa APIs witho
  
  **Configuration**<br>
  At your project root, create a .env file and in it set the consumer key and consumer secret as follows   
- `consumer_key= [consumer key]` <br>
- `consumer_secret=[consumer secret]`<br>
- `application_status=[live or sandbox]`<br>
+ `MPESA_CONSUMER_KEY= [consumer key]` <br>
+ `MPESA_CONSUMER_SECRET=[consumer secret]`<br>
+ `MPESA_API_STATUS=[live or sandbox]`<br>
  For Laravel users, open the Config/App.php file and add `\Safaricom\Mpesa\MpesaServiceProvider::class` under providers and ` 'Mpesa'=> \Safaricom\Mpesa\MpesaServiceProvider::class` under aliases.
   
-  _Remember to edit the consumer_key and consumer_secret values appropriately when switching between sandbox and live_
+  _Remember to edit the MPESA_CONSUMER_KEY and MPESA_CONSUMER_SECRET values appropriately when switching between sandbox and live_
 
   
  **Usage**
@@ -24,7 +26,7 @@ This package seeks to help php developers implement the various Mpesa APIs witho
  
  This creates transaction between an M-Pesa short code to a phone number registered on M-Pesa.
  
-`$mpesa= new \Safaricom\Mpesa\Mpesa();`
+`$mpesa= new \Safaricom\Mpesa\Mpesa($consumer_key, $consumer_secret, $config  = [ 'live' => true|false ]);`
 
 `$b2cTransaction=$mpesa->b2c($InitiatorName, $SecurityCredential, $CommandID, $Amount, $PartyA, $PartyB, $Remarks, $QueueTimeOutURL, $ResultURL, $Occasion);`
 
@@ -34,7 +36,7 @@ This package seeks to help php developers implement the various Mpesa APIs witho
  
 This is used to enquire the balance on an M-Pesa BuyGoods (Till Number)
 
-`$mpesa= new \Safaricom\Mpesa\Mpesa();`
+`$mpesa= new \Safaricom\Mpesa\Mpesa($consumer_key, $consumer_secret, $config  = [ 'live' => true|false ]);`
 
 `$balanceInquiry=$mpesa->accountBalance($CommandID, $Initiator, $SecurityCredential, $PartyA, $IdentifierType, $Remarks, $QueueTimeOutURL, $ResultURL);`
 

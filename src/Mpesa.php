@@ -5,6 +5,7 @@
  * Date: 15/10/17
  * Time: 4:59 PM
  */
+
 namespace Safaricom\Mpesa;
 
 
@@ -14,22 +15,72 @@ namespace Safaricom\Mpesa;
  */
 class Mpesa
 {
+    protected $key;
+    protected $secret;
+    protected $config;
+
+    /**
+     * Mpesa constructor.
+     *
+     * @param $key
+     * @param $secret
+     * @param array $config
+     */
+    public function __construct($key = null, $secret = null, array $config = array())
+    {
+        $this->key = $key ? : env('MPESA_CONSUMER_KEY');
+        $this->secret = $secret ? : env('MPESA_CONSUMER_SECRET');
+    }
+
+    /**
+     * @param $key
+     * @param $default
+     * @return mixed
+     */
+    public function getConfig($key, $default)
+    {
+        try {
+            $val =  $this->config[$key];
+
+            if(!$val)
+                $val =  env($key, $default);
+
+            return $val;
+
+        } catch (\Exception $exception) {
+            return $default;
+        }
+    }
+
+    /**
+     * @return boolean
+     */
+    public function isLive()
+    {
+        if(array_key_exists('live', $this->config))
+            return $this->getConfig('live', false);
+
+        return env('MPESA_API_STATUS','sandbox');
+    }
+
     /**
      * This is used to generate tokens for the live environment
      * @return mixed
      */
-    public static function generateLiveToken(){
-        $consumer_key=env("consumer_key");
-        $consumer_secret=env("consumer_secret");
+    public function generateToken()
+    {
+        $consumer_key = $this->key;
+        $consumer_secret = $this->secret;
 
-        if(!isset($consumer_key)||!isset($consumer_secret)){
+        if (!isset($consumer_key) || !isset($consumer_secret)) {
             die("please declare the consumer key and consumer secret as defined in the documentation");
         }
-        $url = 'https://api.safaricom.co.ke/oauth/v1/generate?grant_type=client_credentials';
+
+        $url = $this->get_endpoint("oauth/v1/generate?grant_type=client_credentials");
         $curl = curl_init();
         curl_setopt($curl, CURLOPT_URL, $url);
-        $credentials = base64_encode($consumer_key.':'.$consumer_secret);
-        curl_setopt($curl, CURLOPT_HTTPHEADER, array('Authorization: Basic '.$credentials)); //setting a custom header
+        $credentials = base64_encode($consumer_key . ':' . $consumer_secret);
+        curl_setopt($curl, CURLOPT_HTTPHEADER, array('Authorization: Basic ' . $credentials)); //setting a custom header
         curl_setopt($curl, CURLOPT_HEADER, false);
         curl_setopt($curl, CURLOPT_RETURNTRANSFER, 1);
 
@@ -42,37 +93,12 @@ class Mpesa
 
     }
 
-
-    /**
-     * use this function to generate a sandbox token
-     * @return mixed
-     */
-    public static function generateSandBoxToken(){
-        $consumer_key= env("consumer_key");
-        $consumer_secret= env("consumer_secret");
-        if(!isset($consumer_key)||!isset($consumer_secret)){
-            die("please declare the consumer key and consumer secret as defined in the documentation");
-        }
-        $url = 'https://sandbox.safaricom.co.ke/oauth/v1/generate?grant_type=client_credentials';
-        $curl = curl_init();
-        curl_setopt($curl, CURLOPT_URL, $url);
-        $credentials = base64_encode($consumer_key.':'.$consumer_secret);
-        curl_setopt($curl, CURLOPT_HTTPHEADER, array('Authorization: Basic '.$credentials)); //setting a custom header
-        curl_setopt($curl, CURLOPT_HEADER, false);
-        curl_setopt($curl, CURLOPT_RETURNTRANSFER, 1);
-
-        curl_setopt($curl, CURLOPT_SSL_VERIFYPEER, false);
-
-        $curl_response = curl_exec($curl);
-
-        return json_decode($curl_response)->access_token;
-    }
 
     /**
      * Use this function to initiate a reversal request
      * @param $CommandID | Takes only 'TransactionReversal' Command id
      * @param $Initiator | The name of Initiator to initiating  the request
-     * @param $SecurityCredential | 	Encrypted Credential of user getting transaction amount
+     * @param $SecurityCredential |    Encrypted Credential of user getting transaction amount
      * @param $TransactionID | Unique Id received with every transaction response.
      * @param $Amount | Amount
      * @param $ReceiverParty | Organization /MSISDN sending the transaction
@@ -80,28 +106,18 @@ class Mpesa
      * @param $ResultURL | The path that stores information of transaction
      * @param $QueueTimeOutURL | The path that stores information of time out transaction
      * @param $Remarks | Comments that are sent along with the transaction.
-     * @param $Occasion | 	Optional Parameter
+     * @param $Occasion |    Optional Parameter
      * @return mixed|string
      */
-    public static function reversal($CommandID, $Initiator, $SecurityCredential, $TransactionID, $Amount, $ReceiverParty, $RecieverIdentifierType, $ResultURL, $QueueTimeOutURL, $Remarks, $Occasion){
-        $live=env("live");
-
-        if( $live =="true"){
-            $url = 'https://api.safaricom.co.ke/mpesa/reversal/v1/request';
-            $token=self::generateLiveToken();
-        }elseif ($live=="false"){
-            $url = 'https://sandbox.safaricom.co.ke/mpesa/reversal/v1/request';
-            $token=self::generateSandBoxToken();
-        }else{
-            return json_encode(["Message"=>"invalid application status"]);
-        }
-
-
+    public function reversal($CommandID, $Initiator, $SecurityCredential, $TransactionID, $Amount, $ReceiverParty, $RecieverIdentifierType, $ResultURL, $QueueTimeOutURL, $Remarks, $Occasion)
+    {
+        $token = $this->generateToken();
+        $url  = $this->get_endpoint("mpesa/reversal/v1/request");
 
         $curl = curl_init();
 
         curl_setopt($curl, CURLOPT_URL, $url);
-        curl_setopt($curl, CURLOPT_HTTPHEADER, array('Content-Type:application/json','Authorization:Bearer '.$token));
+        curl_setopt($curl, CURLOPT_HTTPHEADER, array('Content-Type:application/json', 'Authorization:Bearer ' . $token));
 
 
         $curl_post_data = array(
@@ -129,7 +145,7 @@ class Mpesa
     }
 
     /**
-     * @param $InitiatorName | 	This is the credential/username used to authenticate the transaction request.
+     * @param $InitiatorName |    This is the credential/username used to authenticate the transaction request.
      * @param $SecurityCredential | Encrypted password for the initiator to autheticate the transaction request
      * @param $CommandID | Unique command for each transaction type e.g. SalaryPayment, BusinessPayment, PromotionPayment
      * @param $Amount | The amount being transacted
@@ -138,34 +154,26 @@ class Mpesa
      * @param $Remarks | Comments that are sent along with the transaction.
      * @param $QueueTimeOutURL | The timeout end-point that receives a timeout response.
      * @param $ResultURL | The end-point that receives the response of the transaction
-     * @param $Occasion | 	Optional
+     * @param $Occasion |    Optional
      * @return string
      */
-    public static function b2c($InitiatorName, $SecurityCredential, $CommandID, $Amount, $PartyA, $PartyB, $Remarks, $QueueTimeOutURL, $ResultURL, $Occasion){
-        $live=env("application_status");
-
-        if( $live =="live"){
-            $url = 'https://api.safaricom.co.ke/mpesa/b2c/v1/paymentrequest';
-            $token=self::generateLiveToken();
-        }elseif ($live=="sandbox"){
-            $url = 'https://sandbox.safaricom.co.ke/mpesa/b2c/v1/paymentrequest';
-            $token=self::generateSandBoxToken();
-        }else{
-            return json_encode(["Message"=>"invalid application status"]);
-        }
+    public function b2c($InitiatorName, $SecurityCredential, $CommandID, $Amount, $PartyA, $PartyB, $Remarks, $QueueTimeOutURL, $ResultURL, $Occasion)
+    {
+        $token = $this->generateToken();
+        $url  = $this->get_endpoint("mpesa/b2c/v1/paymentrequest");
 
 
         $curl = curl_init();
         curl_setopt($curl, CURLOPT_URL, $url);
-        curl_setopt($curl, CURLOPT_HTTPHEADER, array('Content-Type:application/json','Authorization:Bearer '.$token));
+        curl_setopt($curl, CURLOPT_HTTPHEADER, array('Content-Type:application/json', 'Authorization:Bearer ' . $token));
 
 
         $curl_post_data = array(
             'InitiatorName' => $InitiatorName,
             'SecurityCredential' => $SecurityCredential,
-            'CommandID' => $CommandID ,
+            'CommandID' => $CommandID,
             'Amount' => $Amount,
-            'PartyA' => $PartyA ,
+            'PartyA' => $PartyA,
             'PartyB' => $PartyB,
             'Remarks' => $Remarks,
             'QueueTimeOutURL' => $QueueTimeOutURL,
@@ -184,33 +192,24 @@ class Mpesa
         return json_encode($curl_response);
 
     }
+
     /**
      * Use this function to initiate a B2C transaction
      * @param $ShortCode | 6 digit M-Pesa Till Number or PayBill Number
      * @param $CommandID | Unique command for each transaction type.
      * @param $Amount | The amount been transacted.
      * @param $Msisdn | MSISDN (phone number) sending the transaction, start with country code without the plus(+) sign.
-     * @param $BillRefNumber | 	Bill Reference Number (Optional).
+     * @param $BillRefNumber |    Bill Reference Number (Optional).
      * @return mixed|string
      */
-    public  static  function  c2b($ShortCode, $CommandID, $Amount, $Msisdn, $BillRefNumber ){
-        $live=env("application_status");
-
-        if( $live =="live"){
-            $url = 'https://api.safaricom.co.ke/mpesa/c2b/v1/simulate';
-            $token=self::generateLiveToken();
-        }elseif ($live=="sandbox"){
-            $url = 'https://sandbox.safaricom.co.ke/mpesa/c2b/v1/simulate';
-            $token=self::generateSandBoxToken();
-        }else{
-            return json_encode(["Message"=>"invalid application status"]);
-        }
-
-
+    public function c2b($ShortCode, $CommandID, $Amount, $Msisdn, $BillRefNumber)
+    {
+        $token = $this->generateToken();
+        $url  = $this->get_endpoint("mpesa/c2b/v1/simulate");
 
         $curl = curl_init();
         curl_setopt($curl, CURLOPT_URL, $url);
-        curl_setopt($curl, CURLOPT_HTTPHEADER, array('Content-Type:application/json','Authorization:Bearer '.$token));
+        curl_setopt($curl, CURLOPT_HTTPHEADER, array('Content-Type:application/json', 'Authorization:Bearer ' . $token));
 
         $curl_post_data = array(
             'ShortCode' => $ShortCode,
@@ -235,33 +234,24 @@ class Mpesa
     /**
      * Use this to initiate a balance inquiry request
      * @param $CommandID | A unique command passed to the M-Pesa system.
-     * @param $Initiator | 	This is the credential/username used to authenticate the transaction request.
+     * @param $Initiator |    This is the credential/username used to authenticate the transaction request.
      * @param $SecurityCredential | Encrypted password for the initiator to autheticate the transaction request
      * @param $PartyA | Type of organization receiving the transaction
      * @param $IdentifierType |Type of organization receiving the transaction
      * @param $Remarks | Comments that are sent along with the transaction.
      * @param $QueueTimeOutURL | The path that stores information of time out transaction
-     * @param $ResultURL | 	The path that stores information of transaction
+     * @param $ResultURL |    The path that stores information of transaction
      * @return mixed|string
      */
-    public static function accountBalance($CommandID, $Initiator, $SecurityCredential, $PartyA, $IdentifierType, $Remarks, $QueueTimeOutURL, $ResultURL){
-        $live=env("application_status");
-
-
-        if( $live =="live"){
-            $url = 'https://api.safaricom.co.ke/mpesa/accountbalance/v1/query';
-            $token=self::generateLiveToken();
-        }elseif ($live=="sandbox"){
-            $url = 'https://sandbox.safaricom.co.ke/mpesa/accountbalance/v1/query';
-            $token=self::generateSandBoxToken();
-        }else{
-            return json_encode(["Message"=>"invalid application status"]);
-        }
+    public function accountBalance($CommandID, $Initiator, $SecurityCredential, $PartyA, $IdentifierType, $Remarks, $QueueTimeOutURL, $ResultURL)
+    {
+        $token = $this->generateToken();
+        $url  = $this->get_endpoint("mpesa/accountbalance/v1/query");
 
 
         $curl = curl_init();
         curl_setopt($curl, CURLOPT_URL, $url);
-        curl_setopt($curl, CURLOPT_HTTPHEADER, array('Content-Type:application/json','Authorization:Bearer '.$token)); //setting custom header
+        curl_setopt($curl, CURLOPT_HTTPHEADER, array('Content-Type:application/json', 'Authorization:Bearer ' . $token)); //setting custom header
 
 
         $curl_post_data = array(
@@ -288,33 +278,25 @@ class Mpesa
     /**
      * Use this function to make a transaction status request
      * @param $Initiator | The name of Initiator to initiating the request.
-     * @param $SecurityCredential | 	Encrypted password for the initiator to autheticate the transaction request.
+     * @param $SecurityCredential |    Encrypted password for the initiator to autheticate the transaction request.
      * @param $CommandID | Unique command for each transaction type, possible values are: TransactionStatusQuery.
      * @param $TransactionID | Organization Receiving the funds.
      * @param $PartyA | Organization/MSISDN sending the transaction
      * @param $IdentifierType | Type of organization receiving the transaction
      * @param $ResultURL | The path that stores information of transaction
      * @param $QueueTimeOutURL | The path that stores information of time out transaction
-     * @param $Remarks | 	Comments that are sent along with the transaction
-     * @param $Occasion | 	Optional Parameter
+     * @param $Remarks |    Comments that are sent along with the transaction
+     * @param $Occasion |    Optional Parameter
      * @return mixed|string
      */
-    public function transactionStatus($Initiator, $SecurityCredential, $CommandID, $TransactionID, $PartyA, $IdentifierType, $ResultURL, $QueueTimeOutURL, $Remarks, $Occasion){
-        $live=env("live");
-
-        if( $live =="true"){
-            $url = 'https://api.safaricom.co.ke/mpesa/transactionstatus/v1/query';
-            $token=self::generateLiveToken();
-        }elseif ($live=="false"){
-            $url = 'https://sandbox.safaricom.co.ke/mpesa/transactionstatus/v1/query';
-            $token=self::generateSandBoxToken();
-        }else{
-            return json_encode(["Message"=>"invalid application status"]);
-        }
+    public function transactionStatus($Initiator, $SecurityCredential, $CommandID, $TransactionID, $PartyA, $IdentifierType, $ResultURL, $QueueTimeOutURL, $Remarks, $Occasion)
+    {
+        $token = $this->generateToken();
+        $url  = $this->get_endpoint("mpesa/transactionstatus/v1/query");
 
         $curl = curl_init();
         curl_setopt($curl, CURLOPT_URL, $url);
-        curl_setopt($curl, CURLOPT_HTTPHEADER, array('Content-Type:application/json','Authorization:Bearer '.$token)); //setting custom header
+        curl_setopt($curl, CURLOPT_HTTPHEADER, array('Content-Type:application/json', 'Authorization:Bearer ' . $token)); //setting custom header
 
 
         $curl_post_data = array(
@@ -357,24 +339,16 @@ class Mpesa
      * @param $commandID | Unique command for each transaction type, possible values are: BusinessPayBill, MerchantToMerchantTransfer, MerchantTransferFromMerchantToWorking, MerchantServicesMMFAccountTransfer, AgencyFloatAdvance
      * @param $SenderIdentifierType | Type of organization sending the transaction.
      * @param $RecieverIdentifierType | Type of organization receiving the funds being transacted.
-
      * @return mixed|string
      */
-    public function b2b($Initiator, $SecurityCredential, $Amount, $PartyA, $PartyB, $Remarks, $QueueTimeOutURL, $ResultURL, $AccountReference, $commandID, $SenderIdentifierType, $RecieverIdentifierType){
-        $live=env("application_status");
+    public function b2b($Initiator, $SecurityCredential, $Amount, $PartyA, $PartyB, $Remarks, $QueueTimeOutURL, $ResultURL, $AccountReference, $commandID, $SenderIdentifierType, $RecieverIdentifierType)
+    {
+        $token = $this->generateToken();
+        $url  = $this->get_endpoint("mpesa/b2b/v1/paymentrequest");
 
-        if( $live =="live"){
-            $url = 'https://api.safaricom.co.ke/mpesa/b2b/v1/paymentrequest';
-            $token=self::generateLiveToken();
-        }elseif ($live=="sandbox"){
-            $url = 'https://sandbox.safaricom.co.ke/mpesa/b2b/v1/paymentrequest';
-            $token=self::generateSandBoxToken();
-        }else{
-            return json_encode(["Message"=>"invalid application status"]);
-        }
         $curl = curl_init();
         curl_setopt($curl, CURLOPT_URL, $url);
-        curl_setopt($curl, CURLOPT_HTTPHEADER, array('Content-Type:application/json','Authorization:Bearer '.$token)); //setting custom header
+        curl_setopt($curl, CURLOPT_HTTPHEADER, array('Content-Type:application/json', 'Authorization:Bearer ' . $token)); //setting custom header
         $curl_post_data = array(
             'Initiator' => $Initiator,
             'SecurityCredential' => $SecurityCredential,
@@ -413,26 +387,18 @@ class Mpesa
      * @param $Remark | Remarks
      * @return mixed|string
      */
-    public function STKPushSimulation($BusinessShortCode, $LipaNaMpesaPasskey, $TransactionType, $Amount, $PartyA, $PartyB, $PhoneNumber, $CallBackURL, $AccountReference, $TransactionDesc, $Remark){
-        $live=env("application_status");
-        if( $live =="live"){
-            $url = 'https://api.safaricom.co.ke/mpesa/stkpush/v1/processrequest';
-            $token=self::generateLiveToken();
-        }elseif ($live=="sandbox"){
-            $url = 'https://sandbox.safaricom.co.ke/mpesa/stkpush/v1/processrequest';
-            $token=self::generateSandBoxToken();
-        }else{
-            return json_encode(["Message"=>"invalid application status"]);
-        }
+    public function STKPushSimulation($BusinessShortCode, $LipaNaMpesaPasskey, $TransactionType, $Amount, $PartyA, $PartyB, $PhoneNumber, $CallBackURL, $AccountReference, $TransactionDesc, $Remark)
+    {
+        $token = $this->generateToken();
+        $url  = $this->get_endpoint("mpesa/stkpush/v1/processrequest");
 
 
-
-        $timestamp='20'.date(    "ymdhis");
-        $password=base64_encode($BusinessShortCode.$LipaNaMpesaPasskey.$timestamp);
+        $timestamp = '20' . date("ymdhis");
+        $password = base64_encode($BusinessShortCode . $LipaNaMpesaPasskey . $timestamp);
 
         $curl = curl_init();
         curl_setopt($curl, CURLOPT_URL, $url);
-        curl_setopt($curl, CURLOPT_HTTPHEADER, array('Content-Type:application/json','Authorization:Bearer '.$token));
+        curl_setopt($curl, CURLOPT_HTTPHEADER, array('Content-Type:application/json', 'Authorization:Bearer ' . $token));
 
 
         $curl_post_data = array(
@@ -447,7 +413,7 @@ class Mpesa
             'CallBackURL' => $CallBackURL,
             'AccountReference' => $AccountReference,
             'TransactionDesc' => $TransactionType,
-            'Remark'=> $Remark
+            'Remark' => $Remark
         );
 
         $data_string = json_encode($curl_post_data);
@@ -456,7 +422,7 @@ class Mpesa
         curl_setopt($curl, CURLOPT_POST, true);
         curl_setopt($curl, CURLOPT_POSTFIELDS, $data_string);
         curl_setopt($curl, CURLOPT_HEADER, false);
-        $curl_response=curl_exec($curl);
+        $curl_response = curl_exec($curl);
         return $curl_response;
 
 
@@ -471,23 +437,15 @@ class Mpesa
      * @param $timestamp | Timestamp
      * @return mixed|string
      */
-    public static function STKPushQuery($live, $checkoutRequestID, $businessShortCode, $password, $timestamp){
-        $live=env("live");
-
-        if( $live =="true"){
-            $url = 'https://api.safaricom.co.ke/mpesa/stkpushquery/v1/query';
-            $token=self::generateLiveToken();
-        }elseif ($live=="false"){
-            $url = 'https://sandbox.safaricom.co.ke/mpesa/stkpushquery/v1/query';
-            $token=self::generateSandBoxToken();
-        }else{
-            return json_encode(["Message"=>"invalid application status"]);
-        }
+    public function STKPushQuery($live, $checkoutRequestID, $businessShortCode, $password, $timestamp)
+    {
+        $token = $this->generateToken();
+        $url  = $this->get_endpoint("mpesa/stkpushquery/v1/query");
 
 
         $curl = curl_init();
         curl_setopt($curl, CURLOPT_URL, $url);
-        curl_setopt($curl, CURLOPT_HTTPHEADER, array('Content-Type:application/json','Authorization:Bearer '.$token));
+        curl_setopt($curl, CURLOPT_HTTPHEADER, array('Content-Type:application/json', 'Authorization:Bearer ' . $token));
 
 
         $curl_post_data = array(
@@ -512,11 +470,13 @@ class Mpesa
     /**
      *Use this function to confirm all transactions in callback routes
      */
-    public function finishTransaction(){
-        $resultArray=[
-            "ResultDesc"=>"Confirmation Service request accepted successfully",
-            "ResultCode"=>"0"
+    public function finishTransaction()
+    {
+        $resultArray = [
+            "ResultDesc" => "Confirmation Service request accepted successfully",
+            "ResultCode" => "0"
         ];
+
         header('Content-Type: application/json');
 
         echo json_encode($resultArray);
@@ -526,10 +486,24 @@ class Mpesa
     /**
      *Use this function to get callback data posted in callback routes
      */
-    public function getDataFromCallback(){
-        $callbackJSONData=file_get_contents('php://input');
+    public function getDataFromCallback()
+    {
+        $callbackJSONData = file_get_contents('php://input');
         return $callbackJSONData;
     }
 
+    /**
+     * @param $url
+     * @return string
+     */
+    public function get_endpoint($url)
+    {
+        if ($this->isLive()) {
+            return "https://api.safaricom.co.ke/{$url}";
+
+        } else {
+            return "https://sandbox.safaricom.co.ke/{$url}";
+        }
+    }
 
 }
