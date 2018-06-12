@@ -105,8 +105,6 @@ class Mpesa
 
         try {
             $result = json_decode($curl_response, true);
-            var_dump($result);
-            die("that is it for now");
 //            $this->authed_at = time();
 //            $this->access_token = $result['access_token'];
 //            $this->expires_in = $result['expires_in'];
