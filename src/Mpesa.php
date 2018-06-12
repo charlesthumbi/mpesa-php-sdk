@@ -88,10 +88,9 @@ class Mpesa
         curl_setopt($curl, CURLOPT_SSL_VERIFYPEER, false);
 
         $curl_response = curl_exec($curl);
+        die($curl_response);
 
         return json_decode($curl_response)->access_token;
-
-
     }
 
 
