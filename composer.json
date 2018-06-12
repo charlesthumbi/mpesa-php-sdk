@@ -1,6 +1,6 @@
 {
-  "name": "safaricom/mpesa",
-  "description": "A PHP package for Mpesa API",
+  "name": "mitajunior/mpesa",
+  "description": "Laravel package for MPESA API",
   "type": "package",
  "minimum-stability": "dev", 
  
@@ -10,8 +10,8 @@
   "license": "mit",
   "authors": [
     {
-      "name": "Moses Nandwa",
-      "email": "mnandwa@safaricom.co.ke"
+      "name": "Mitamita Cliff Oscar",
+      "email": "mitacliff@gmail.com"
     }
   ],
  
