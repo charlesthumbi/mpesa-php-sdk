@@ -72,8 +72,6 @@ class Mpesa
     {
         $consumer_key = $this->key;
         $consumer_secret = $this->secret;
-        var_dump($this);
-
         if (!isset($consumer_key) || !isset($consumer_secret)) {
             die("please declare the consumer key and consumer secret as defined in the documentation");
         }
@@ -82,7 +80,7 @@ class Mpesa
         $curl = curl_init();
 
         curl_setopt($curl, CURLOPT_URL, $url);
-        $credentials = base64_encode($consumer_key . ':' . $consumer_secret);
+        $credentials = base64_encode("{$consumer_key}:{$consumer_secret}");
         curl_setopt_array($curl, [
             CURLOPT_URL => $url,
             CURLOPT_RETURNTRANSFER => true,
@@ -97,11 +95,24 @@ class Mpesa
             ],
             CURLOPT_SSL_VERIFYPEER => false
         ]);
-        $curl_response = curl_exec($curl);
-        var_dump($curl_response);
-        die();
 
-        return json_decode($curl_response)->access_token;
+        $curl_response = curl_exec($curl);
+        $err = curl_error($curl);
+        curl_close($curl);
+        if ($err) {
+            throw $err;
+        }
+
+        try {
+            $result = json_decode($curl_response, true);
+//            $this->authed_at = time();
+//            $this->access_token = $result['access_token'];
+//            $this->expires_in = $result['expires_in'];
+            return  $result['access_token'];
+
+        } catch (\Exception $e) {
+            throw $e;
+        }
     }
 
 
